@@ -28,9 +28,6 @@ def format_document(input_path, output_path):
 
     set_table_styles(doc)
 
-
-
-
     # 4. 保存文档
     doc.save(output_path)
 

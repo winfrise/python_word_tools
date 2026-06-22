@@ -6,14 +6,10 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from lxml import etree
 
-def set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000"):
-    """
-    终极表格边框设置：解决内外边框不一致、不显示的问题
-    :param table: docx 表格对象
-    :param outer_size: 外边框宽度 (磅)，默认 1.0pt
-    :param inner_size: 内边框宽度 (磅)，默认 0.5pt
-    :param color: 16进制颜色字符串 (如 '000000' 为黑色)
-    """
+def set_table_borders_ultimate(table):
+    outer_size=1.0
+    inner_size=0.5
+    color="000000"
     # --- 辅助函数：创建边框 XML 节点 ---
     def make_border_elem(tag, size_pt, color_hex):
         """
@@ -142,28 +138,22 @@ def set_cell_margin_font_line_height(table):
                 for run in paragraph.runs:
                     run.font.size = Pt(10.5) # 五号字
 
-def format_table_complete(table):
-    """
-    将表格设置为嵌入型（即取消文字环绕/浮动）
-    """
-    # 1. 获取表格的 XML 根节点 (tbl)
+def set_table_inner_cell_margin(table):
+    # 获取表格的 XML 根节点 (tbl)
     tbl = table._tbl
 
-    # 2. 查找或创建 tblPr (表格属性节点)
-    # python-docx 没有 get_or_add_tblPr，我们需要手动处理
+    #  ---将表格设置为嵌入型 -----
     tblPr = tbl.find(qn('w:tblPr'))
     if tblPr is None:
         tblPr = etree.SubElement(tbl, qn('w:tblPr'))
 
-    # 3. 查找 tblpPr (表格位置属性，这是导致表格变成"浮动型"的元凶)
     tblpPr = tblPr.find(qn('w:tblpPr'))
-
-    # 4. 如果找到了 tblpPr，说明它是浮动的，必须删除它才能变回嵌入型
     if tblpPr is not None:
         tblPr.remove(tblpPr)
 
-    # --- A. 布局与尺寸 ---
+    # 表格整体居中对齐
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
     tbl = table._tbl
     tblPr = tbl.find(qn('w:tblPr'))
     if tblPr is None:
@@ -183,7 +173,7 @@ def format_table_complete(table):
     tblCellMar = OxmlElement('w:tblCellMar')
     for tag in ['w:top', 'w:left', 'w:bottom', 'w:right']:
         margin = OxmlElement(tag)
-        margin.set(qn('w:w'), '54')  # 约 0.04英寸，适中
+        margin.set(qn('w:w'), '150')  # 边距
         margin.set(qn('w:type'), 'dxa')
         tblCellMar.append(margin)
 
@@ -192,13 +182,13 @@ def format_table_complete(table):
         tblPr.remove(old_tblCellMar)
     tblPr.append(tblCellMar)
 
-    # --- B. 调用上面的终极边框函数 ---
-    # 这里设置：外框 1pt，内框 0.5pt，黑色
-    set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000")
-
-    # --- C. 遍历行和单元格处理内容与行高 ---
-    set_cell_margin_font_line_height(table)
-
 def set_table_styles(doc):
     for table in doc.tables:
-        format_table_complete(table)
+        set_table_inner_cell_margin(table)
+        # --- B. 调用上面的终极边框函数 ---
+        # 这里设置：外框 1pt，内框 0.5pt，黑色
+        set_table_borders_ultimate(table)
+
+        # --- C. 遍历行和单元格处理内容与行高 ---
+        set_cell_margin_font_line_height(table)
+
