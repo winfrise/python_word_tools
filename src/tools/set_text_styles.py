@@ -11,8 +11,11 @@ def set_text_style(doc):
         if para.style.name.startswith('Heading') or para.style.name.startswith('标题'):
             continue  
 
-        # 设置1.5倍行距
-        para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE 
+        # # 设置1.5倍行距
+        # para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE 
+        
+        # 设置单倍行距
+        para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE 
         
         # 关闭“与网格对齐”
         # para.paragraph_format.snap_to_grid = False
