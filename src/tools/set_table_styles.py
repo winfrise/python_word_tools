@@ -163,7 +163,7 @@ def format_table_complete(table):
             cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
             # 水平左对齐
             for paragraph in cell.paragraphs:
-                paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                 # 统一字号
                 for run in paragraph.runs:
                     run.font.size = Pt(10.5) # 五号字
