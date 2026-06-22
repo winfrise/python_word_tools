@@ -186,14 +186,20 @@ def set_table_cell_align_line_height(table):
             for paragraph in cell.paragraphs:
                 # 两端对齐
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                # 设置1.5倍行距
-                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+
+                # 单倍行距
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+                # # 设置1.5倍行距
+                # paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+                # # 设置1.2倍行距
+                # paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+                # paragraph.paragraph_format.line_spacing = 1.2
                 
                 # 段前0，段后0
                 paragraph.paragraph_format.space_before = Pt(0)
                 paragraph.paragraph_format.space_after = Pt(0)
                 
-                # 禁用对齐到网格
+                # # 禁用对齐到网格
                 # paragraph.paragraph_format.snap_to_grid = False
 
                 # 统一字号
