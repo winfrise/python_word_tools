@@ -194,7 +194,7 @@ def set_table_cell_align_line_height(table):
                 paragraph.paragraph_format.space_after = Pt(0)
                 
                 # 禁用对齐到网格
-                paragraph.paragraph_format.snap_to_grid = False
+                # paragraph.paragraph_format.snap_to_grid = False
 
                 # 统一字号
                 for run in paragraph.runs:
@@ -212,6 +212,6 @@ def set_table_styles(doc):
 
         # # --- C. 遍历行和单元格处理内容与行高 ---
         set_table_row_height(table)
-        set_table_first_row_background(table)
+        # set_table_first_row_background(table)
         set_table_cell_align_line_height(table)
 

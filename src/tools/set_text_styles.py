@@ -15,7 +15,7 @@ def set_text_style(doc):
         para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE 
         
         # 关闭“与网格对齐”
-        para.paragraph_format.snap_to_grid = False
+        # para.paragraph_format.snap_to_grid = False
 
         # 对剩余的纯正文段落进行字体修改
         for run in para.runs:
