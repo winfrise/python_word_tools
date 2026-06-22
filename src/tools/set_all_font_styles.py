@@ -51,14 +51,14 @@ def set_all_font_styles(doc, font_name='宋体', font_size=12, color_rgb=(0, 0, 
 
 
                     # 获取段落的 pPr 元素
-                    pPr = paragraph._p.get_or_add_pPr()
+                    # pPr = paragraph._p.get_or_add_pPr()
                     # 创建 spacing 元素并设置属性
-                    spacing = OxmlElement('w:spacing')
-                    spacing.set(qn('w:lineRule'), 'auto')       # 自动行距规则
-                    spacing.set(qn('w:line'), '360')            # 360 = 1.5 * 240 (Word 单位)
+                    # spacing = OxmlElement('w:spacing')
+                    # spacing.set(qn('w:lineRule'), 'auto')       # 自动行距规则
+                    # spacing.set(qn('w:line'), '360')            # 360 = 1.5 * 240 (Word 单位)
 
                     # 将 spacing 添加到 pPr
-                    pPr.append(spacing)
+                    # pPr.append(spacing)
 
     # --- 3. 修改页眉和页脚 ---
     for section in doc.sections:

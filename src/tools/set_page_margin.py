@@ -12,10 +12,10 @@ def set_page_margin(doc):
 
 
         # 页面级别，禁用对齐到网格
-        sectPr = section._sectPr
-        docGrid = sectPr.find(qn('w:docGrid'))
-        if docGrid is not None:
-            sectPr.remove(docGrid)
+        # sectPr = section._sectPr
+        # docGrid = sectPr.find(qn('w:docGrid'))
+        # if docGrid is not None:
+        #     sectPr.remove(docGrid)
 
     print('设置页面边距')
 
