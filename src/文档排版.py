@@ -17,11 +17,10 @@ def format_document(input_path, output_path):
     convert_font_to_heading(doc)
 
     set_global_font(doc)
-    
+
     set_all_font_styles(doc)
 
     set_page_margin(doc)
-
 
     set_heading_level_style(doc)
 

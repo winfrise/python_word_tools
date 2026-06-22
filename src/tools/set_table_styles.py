@@ -4,6 +4,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from lxml import etree
 
 def set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000"):
     """
@@ -84,8 +85,24 @@ def set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000
 
 def format_table_complete(table):
     """
-    整合所有功能的最终版本：布局 + 边框 + 内容
+    将表格设置为嵌入型（即取消文字环绕/浮动）
     """
+    # 1. 获取表格的 XML 根节点 (tbl)
+    tbl = table._tbl
+
+    # 2. 查找或创建 tblPr (表格属性节点)
+    # python-docx 没有 get_or_add_tblPr，我们需要手动处理
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = etree.SubElement(tbl, qn('w:tblPr'))
+
+    # 3. 查找 tblpPr (表格位置属性，这是导致表格变成"浮动型"的元凶)
+    tblpPr = tblPr.find(qn('w:tblpPr'))
+
+    # 4. 如果找到了 tblpPr，说明它是浮动的，必须删除它才能变回嵌入型
+    if tblpPr is not None:
+        tblPr.remove(tblpPr)
+
     # --- A. 布局与尺寸 ---
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     tbl = table._tbl
@@ -139,23 +156,23 @@ def format_table_complete(table):
         trPr.append(trHeight)
 
         # 处理第一行背景色
-        if i == 0:
-            for cell in row.cells:
-                tc = cell._tc
-                tcPr = tc.find(qn('w:tcPr'))
-                if tcPr is None:
-                    tcPr = OxmlElement('w:tcPr')
-                    tc.insert(0, tcPr)
+        # if i == 0:
+        #     for cell in row.cells:
+        #         tc = cell._tc
+        #         tcPr = tc.find(qn('w:tcPr'))
+        #         if tcPr is None:
+        #             tcPr = OxmlElement('w:tcPr')
+        #             tc.insert(0, tcPr)
 
-                shd = OxmlElement('w:shd')
-                shd.set(qn('w:val'), 'clear')
-                shd.set(qn('w:color'), 'auto')
-                shd.set(qn('w:fill'), '4F81BD') # 经典的 Word 蓝表头颜色
+        #         shd = OxmlElement('w:shd')
+        #         shd.set(qn('w:val'), 'clear')
+        #         shd.set(qn('w:color'), 'auto')
+        #         shd.set(qn('w:fill'), '4F81BD') # 经典的 Word 蓝表头颜色
 
-                old_shd = tcPr.find(qn('w:shd'))
-                if old_shd is not None:
-                    tcPr.remove(old_shd)
-                tcPr.append(shd)
+        #         old_shd = tcPr.find(qn('w:shd'))
+        #         if old_shd is not None:
+        #             tcPr.remove(old_shd)
+        #         tcPr.append(shd)
 
         # 处理单元格文字对齐
         for cell in row.cells:
