@@ -1,16 +1,32 @@
-from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.oxml.ns import qn
+from docx.shared import RGBColor
+from docx.oxml.ns import qn
+from lxml import etree
 
 
 def set_heading_level_style(doc):
 
     # 1. 定义不同级别标题的样式配置字典
-    # 您可以根据实际需求随时修改这里的参数
+    #  1: {"cn_font": "微软雅黑", "en_font": "Arial", "size": Pt(22), "color": RGBColor(0, 51, 102), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.CENTER},
     heading_styles_config = {
-        1: {"cn_font": "微软雅黑", "en_font": "Arial", "size": Pt(22), "color": RGBColor(0, 51, 102), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.CENTER},
-        2: {"cn_font": "微软雅黑", "en_font": "Arial", "size": Pt(18), "color": RGBColor(0, 102, 153), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.LEFT},
+        1: {
+            "cn_font": "黑体", 
+            "en_font": "Arial", 
+            "size": Pt(20), 
+            # "color": RGBColor(0, 51, 102), 
+            "bold": False, 
+            "align": WD_PARAGRAPH_ALIGNMENT.CENTER
+        },
+        2: {
+            "cn_font": "黑体", 
+            "en_font": "Arial", 
+            "size": Pt(16), 
+            "color": RGBColor(255, 0, 0), 
+            "bold": False, 
+            "align": WD_PARAGRAPH_ALIGNMENT.LEFT
+        },
         3: {"cn_font": "黑体", "en_font": "Times New Roman", "size": Pt(16), "color": RGBColor(0, 0, 0), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.LEFT},
         4: {"cn_font": "宋体", "en_font": "Times New Roman", "size": Pt(14), "color": RGBColor(0, 0, 0), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.LEFT},
         5: {"cn_font": "宋体", "en_font": "Times New Roman", "size": Pt(13), "color": RGBColor(0, 0, 0), "bold": True, "align": WD_PARAGRAPH_ALIGNMENT.LEFT},
@@ -42,14 +58,21 @@ def set_heading_level_style(doc):
         # 遍历段落内的所有 Run 进行字符级格式化
         for run in para.runs:
             # 英文字体
-            run.font.name = config["en_font"]
-            # 中文字体（底层 XML 设置）
-            run._element.rPr.rFonts.set(qn('w:eastAsia'), config["cn_font"])
-            # 字号
-            run.font.size = config["size"]
-            # 颜色
-            run.font.color.rgb = config["color"]
-            # 加粗
-            run.font.bold = config["bold"]
+            if config["en_font"]:
+                run.font.name = config["en_font"]
 
+            # 中文字体（底层 XML 设置）
+            if config["cn_font"]:
+                run._element.rPr.rFonts.set(qn('w:eastAsia'), config["cn_font"])
+
+            # 字号
+            if config["size"]:
+                run.font.size = config["size"]
+
+            # 颜色
+            if config.get("color"):
+                run.font.color.rgb = config["color"]
+            
+            # 加粗/正常
+            run.font.bold = config["bold"]
     return doc
