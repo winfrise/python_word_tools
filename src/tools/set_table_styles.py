@@ -5,138 +5,169 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-def set_table_borders(table, border_color="000000", border_size_pt=2):
+def set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000"):
     """
-    设置表格边框样式
+    终极表格边框设置：解决内外边框不一致、不显示的问题
     :param table: docx 表格对象
-    :param border_color: 16进制颜色字符串 (如 'FF0000' 为红色)
-    :param border_size_pt: 边框宽度 (磅)，默认为 0.5pt
+    :param outer_size: 外边框宽度 (磅)，默认 1.0pt
+    :param inner_size: 内边框宽度 (磅)，默认 0.5pt
+    :param color: 16进制颜色字符串 (如 '000000' 为黑色)
     """
+    # --- 辅助函数：创建边框 XML 节点 ---
+    def make_border_elem(tag, size_pt, color_hex):
+        """
+        创建一个 w:top/bottom/left/right 元素
+        size_pt: 磅值
+        """
+        elem = OxmlElement(tag)
+        # val="single" 表示实线，也可以设为 "double", "dashed" 等
+        elem.set(qn('w:val'), 'single')
+        # sz 单位是 1/8 pt。例如 0.5pt -> 4
+        elem.set(qn('w:sz'), str(int(size_pt * 8)))
+        elem.set(qn('w:color'), color_hex)
+        elem.set(qn('w:space'), '0')
+        return elem
+
+    tbl = table._tbl
+
+    # 1. 获取或创建 tblPr
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    # 2. 修复 tblLook：防止 Word 默认样式隐藏内部边框
+    # 这一步非常关键，很多时候边框不显示就是因为这个属性
+    tblLook = tblPr.find(qn('w:tblLook'))
+    if tblLook is not None:
+        tblPr.remove(tblLook)
+    new_tblLook = OxmlElement('w:tblLook')
+    # 04A0 表示应用所有默认样式，确保我们的设置能生效
+    new_tblLook.set(qn('w:val'), '04A0')
+    tblPr.append(new_tblLook)
+
+    # 3. 设置表格级边框 (主要控制外框)
+    tblBorders = OxmlElement('w:tblBorders')
+    for tag in ['w:top', 'w:left', 'w:bottom', 'w:right']:
+        tblBorders.append(make_border_elem(tag, outer_size, color))
+    # 内部横线和竖线也在这里定义一次作为兜底
+    tblBorders.append(make_border_elem('w:insideH', inner_size, color))
+    tblBorders.append(make_border_elem('w:insideV', inner_size, color))
+
+    # 移除旧的并添加新的
+    old_tblBorders = tblPr.find(qn('w:tblBorders'))
+    if old_tblBorders is not None:
+        tblPr.remove(old_tblBorders)
+    tblPr.append(tblBorders)
+
+    # 4. 【关键】遍历每个单元格，强制设置单元格级边框
+    # 很多情况下，单元格级别的属性会覆盖表格级别的属性，导致内部没线
+    for row in table.rows:
+        for cell in row.cells:
+            tc = cell._tc
+            tcPr = tc.find(qn('w:tcPr'))
+            if tcPr is None:
+                tcPr = OxmlElement('w:tcPr')
+                tc.insert(0, tcPr)
+
+            tcBorders = OxmlElement('w:tcBorders')
+            # 单元格的四个边都设为内部线条样式
+            for tag in ['w:top', 'w:left', 'w:bottom', 'w:right']:
+                tcBorders.append(make_border_elem(tag, inner_size, color))
+
+            # 移除旧的并添加新的
+            old_tcBorders = tcPr.find(qn('w:tcBorders'))
+            if old_tcBorders is not None:
+                tcPr.remove(old_tcBorders)
+            tcPr.append(tcBorders)
+
+
+def format_table_complete(table):
+    """
+    整合所有功能的最终版本：布局 + 边框 + 内容
+    """
+    # --- A. 布局与尺寸 ---
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
     tbl = table._tbl
     tblPr = tbl.find(qn('w:tblPr'))
     if tblPr is None:
         tblPr = OxmlElement('w:tblPr')
         tbl.insert(0, tblPr)
 
-    # 获取或创建 tblBorders 节点
-    tblBorders = tblPr.find(qn('w:tblBorders'))
-    if tblBorders is not None:
-        tblPr.remove(tblBorders)
+    # 设置宽度 100%
+    old_tblW = tblPr.find(qn('w:tblW'))
+    if old_tblW is not None:
+        tblPr.remove(old_tblW)
+    tblW = OxmlElement('w:tblW')
+    tblW.set(qn('w:w'), '5000')
+    tblW.set(qn('w:type'), 'pct')
+    tblPr.append(tblW)
 
-    tblBorders = OxmlElement('w:tblBorders')
+    # 设置单元格边距 (Padding) - 避免过大导致看起来像合并
+    tblCellMar = OxmlElement('w:tblCellMar')
+    for tag in ['w:top', 'w:left', 'w:bottom', 'w:right']:
+        margin = OxmlElement(tag)
+        margin.set(qn('w:w'), '54')  # 约 0.04英寸，适中
+        margin.set(qn('w:type'), 'dxa')
+        tblCellMar.append(margin)
 
-    # 计算 Word 内部单位 (1 pt = 8 units)
-    size_val = str(int(border_size_pt * 8))
+    old_tblCellMar = tblPr.find(qn('w:tblCellMar'))
+    if old_tblCellMar is not None:
+        tblPr.remove(old_tblCellMar)
+    tblPr.append(tblCellMar)
 
-    # 定义所有需要设置的边框位置
-    # top, bottom, left, right, insideH (水平内线), insideV (垂直内线)
-    borders_config = {
-        'top': 'single',
-        'bottom': 'single',
-        'left': 'single',
-        'right': 'single',
-        'insideH': 'single',
-        'insideV': 'single'
-    }
+    # --- B. 调用上面的终极边框函数 ---
+    # 这里设置：外框 1pt，内框 0.5pt，黑色
+    set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000")
 
-    for tag, style in borders_config.items():
-        element = OxmlElement(f'w:{tag}')
-        element.set(qn('w:val'), style)      # 样式：single, double, dashed 等
-        element.set(qn('w:sz'), size_val)     # 宽度
-        element.set(qn('w:space'), '0')       # 间距
-        element.set(qn('w:color'), border_color) # 颜色
-        tblBorders.append(element)
-
-    tblPr.append(tblBorders)
-
-def set_cell_style(table):
-
-    # --- 遍历行和单元格进行格式化 ---
+    # --- C. 遍历行和单元格处理内容与行高 ---
     for i, row in enumerate(table.rows):
-        # 设置行高自适应 (auto)
-        tr_pr = row._tr.get_or_add_trPr()
-        tr_height = tr_pr.find(qn('w:trHeight'))
-        if tr_height is None:
-            tr_height = OxmlElement('w:trHeight')
-            tr_pr.append(tr_height)
+        tr = row._tr
+        trPr = tr.find(qn('w:trPr'))
+        if trPr is None:
+            trPr = OxmlElement('w:trPr')
+            tr.insert(0, trPr)
 
-        # hRule="auto" 表示高度随内容自动调整
-        tr_height.set(qn('w:hRule'), 'auto')
-        tr_height.set(qn('w:val'), '0')
+        # 设置行高自适应 (atLeast)
+        trHeight = OxmlElement('w:trHeight')
+        trHeight.set(qn('w:val'), '400')  # 最小高度约 0.3英寸
+        trHeight.set(qn('w:hRule'), 'atLeast') # 关键：允许自动撑开
 
-        # 设置第一行背景颜色 (例如浅灰色 RGB: D9D9D9)
+        old_trHeight = trPr.find(qn('w:trHeight'))
+        if old_trHeight is not None:
+            trPr.remove(old_trHeight)
+        trPr.append(trHeight)
+
+        # 处理第一行背景色
         if i == 0:
             for cell in row.cells:
-                tc_pr = cell._tc.get_or_add_tcPr()
+                tc = cell._tc
+                tcPr = tc.find(qn('w:tcPr'))
+                if tcPr is None:
+                    tcPr = OxmlElement('w:tcPr')
+                    tc.insert(0, tcPr)
+
                 shd = OxmlElement('w:shd')
                 shd.set(qn('w:val'), 'clear')
                 shd.set(qn('w:color'), 'auto')
-                shd.set(qn('w:fill'), 'D9D9D9') # 这里修改背景色 Hex 值
-                tc_pr.append(shd)
+                shd.set(qn('w:fill'), '4F81BD') # 经典的 Word 蓝表头颜色
 
-        # 处理单元格内容和垂直居中
+                old_shd = tcPr.find(qn('w:shd'))
+                if old_shd is not None:
+                    tcPr.remove(old_shd)
+                tcPr.append(shd)
+
+        # 处理单元格文字对齐
         for cell in row.cells:
-            # 设置垂直居中
-            tc_pr = cell._tc.get_or_add_tcPr()
-            v_align = OxmlElement('w:vAlign')
-            v_align.set(qn('w:val'), 'center')
-            tc_pr.append(v_align)
-
-            # 设置文字左对齐 & 字体大小 (可选)
-            for para in cell.paragraphs:
-                para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            # 垂直居中
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            # 水平左对齐
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 # 统一字号
-                for run in para.runs:
+                for run in paragraph.runs:
                     run.font.size = Pt(10.5) # 五号字
-
 
 def set_table_styles(doc):
     for table in doc.tables:
-        # --- 1. 获取或创建 tblPr (表格属性) ---
-        # 修复报错的核心逻辑：手动查找或创建 <w:tblPr>
-        tbl = table._tbl
-        tblPr = tbl.find(qn('w:tblPr'))
-        if tblPr is None:
-            tblPr = OxmlElement('w:tblPr')
-            # 将 tblPr 插入到 tbl 的最前面
-            tbl.insert(0, tblPr)
-
-        # --- 2. 设置表格宽度为 100% ---
-        # 先删除旧的宽度设置，防止重复
-        old_tblW = tblPr.find(qn('w:tblW'))
-        if old_tblW is not None:
-            tblPr.remove(old_tblW)
-
-        tblW = OxmlElement('w:tblW')
-        tblW.set(qn('w:w'), '5000')   # 5000 代表 100% (Word单位是 1/50 %)
-        tblW.set(qn('w:type'), 'pct')
-        tblPr.append(tblW)
-
-        # 设置表格对齐方式为居中（配合100%宽度使用效果最好）
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-        # --- 3. 设置单元格内边距 (Cell Margins) ---
-        # --- 2. 设置单元格内边距 (Cell Margins) ---
-        # 关键点：这里数值不能太大，否则会把格子撑得看起来像合并了
-        # 单位是 twips (1/20 point)。这里设置为 54 (约 2.7pt)，比较适中
-        tblCellMar = tblPr.find(qn('w:tblCellMar'))
-        if tblCellMar is None:
-            tblCellMar = OxmlElement('w:tblCellMar')
-            tblPr.append(tblCellMar)
-
-        margins = {'top': '54', 'bottom': '54', 'left': '54', 'right': '54'}
-        for side, val in margins.items():
-            tag = f'w:{side}'
-            elem = tblCellMar.find(qn(tag))
-            if elem is None:
-                elem = OxmlElement(tag)
-                tblCellMar.append(elem)
-            elem.set(qn('w:w'), val)
-            elem.set(qn('w:type'), 'dxa')
-
-
-        set_cell_style(table)
-        set_table_borders(table)
-
-
-
+        format_table_complete(table)
