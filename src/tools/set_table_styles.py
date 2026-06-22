@@ -1,7 +1,7 @@
 from docx import Document
 from docx.shared import Pt, RGBColor
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from lxml import etree
@@ -83,6 +83,65 @@ def set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000
             tcPr.append(tcBorders)
 
 
+def set_cell_margin_font_line_height(table):
+    for i, row in enumerate(table.rows):
+        tr = row._tr
+        trPr = tr.find(qn('w:trPr'))
+        if trPr is None:
+            trPr = OxmlElement('w:trPr')
+            tr.insert(0, trPr)
+
+        # 设置行高自适应 (atLeast)
+        trHeight = OxmlElement('w:trHeight')
+        trHeight.set(qn('w:val'), '400')  # 最小高度约 0.3英寸
+        trHeight.set(qn('w:hRule'), 'atLeast') # 关键：允许自动撑开
+
+        old_trHeight = trPr.find(qn('w:trHeight'))
+        if old_trHeight is not None:
+            trPr.remove(old_trHeight)
+        trPr.append(trHeight)
+
+        # 处理第一行背景色
+        # if i == 0:
+        #     for cell in row.cells:
+        #         tc = cell._tc
+        #         tcPr = tc.find(qn('w:tcPr'))
+        #         if tcPr is None:
+        #             tcPr = OxmlElement('w:tcPr')
+        #             tc.insert(0, tcPr)
+
+        #         shd = OxmlElement('w:shd')
+        #         shd.set(qn('w:val'), 'clear')
+        #         shd.set(qn('w:color'), 'auto')
+        #         shd.set(qn('w:fill'), '4F81BD') # 经典的 Word 蓝表头颜色
+
+        #         old_shd = tcPr.find(qn('w:shd'))
+        #         if old_shd is not None:
+        #             tcPr.remove(old_shd)
+        #         tcPr.append(shd)
+
+        # 处理单元格文字对齐
+        for cell in row.cells:
+            # 垂直居中
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
+            for paragraph in cell.paragraphs:
+                # 两端对齐
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                # 设置1.5倍行距
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+                
+                # 段前0，段后0
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.space_after = Pt(0)
+                
+                # 禁用对齐到网格
+                paragraph.paragraph_format.snap_to_grid = False
+
+                # 统一字号
+                for run in paragraph.runs:
+                    run.font.size = Pt(10.5) # 五号字
+
 def format_table_complete(table):
     """
     将表格设置为嵌入型（即取消文字环绕/浮动）
@@ -138,52 +197,7 @@ def format_table_complete(table):
     set_table_borders_ultimate(table, outer_size=1.0, inner_size=0.5, color="000000")
 
     # --- C. 遍历行和单元格处理内容与行高 ---
-    for i, row in enumerate(table.rows):
-        tr = row._tr
-        trPr = tr.find(qn('w:trPr'))
-        if trPr is None:
-            trPr = OxmlElement('w:trPr')
-            tr.insert(0, trPr)
-
-        # 设置行高自适应 (atLeast)
-        trHeight = OxmlElement('w:trHeight')
-        trHeight.set(qn('w:val'), '400')  # 最小高度约 0.3英寸
-        trHeight.set(qn('w:hRule'), 'atLeast') # 关键：允许自动撑开
-
-        old_trHeight = trPr.find(qn('w:trHeight'))
-        if old_trHeight is not None:
-            trPr.remove(old_trHeight)
-        trPr.append(trHeight)
-
-        # 处理第一行背景色
-        # if i == 0:
-        #     for cell in row.cells:
-        #         tc = cell._tc
-        #         tcPr = tc.find(qn('w:tcPr'))
-        #         if tcPr is None:
-        #             tcPr = OxmlElement('w:tcPr')
-        #             tc.insert(0, tcPr)
-
-        #         shd = OxmlElement('w:shd')
-        #         shd.set(qn('w:val'), 'clear')
-        #         shd.set(qn('w:color'), 'auto')
-        #         shd.set(qn('w:fill'), '4F81BD') # 经典的 Word 蓝表头颜色
-
-        #         old_shd = tcPr.find(qn('w:shd'))
-        #         if old_shd is not None:
-        #             tcPr.remove(old_shd)
-        #         tcPr.append(shd)
-
-        # 处理单元格文字对齐
-        for cell in row.cells:
-            # 垂直居中
-            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-            # 水平左对齐
-            for paragraph in cell.paragraphs:
-                paragraph.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                # 统一字号
-                for run in paragraph.runs:
-                    run.font.size = Pt(10.5) # 五号字
+    set_cell_margin_font_line_height(table)
 
 def set_table_styles(doc):
     for table in doc.tables:
