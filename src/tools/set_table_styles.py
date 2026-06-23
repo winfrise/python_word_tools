@@ -44,21 +44,44 @@ def set_table_full_width(table):
     tblW.set(qn('w:type'), 'pct')
     tblPr.append(tblW)
 
+
+
+
+
 # 设置表格内边距
 def set_table_padding(table):
+    # 移除老的边距【表格级别全局边距】
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    old_tblCellMar = tblPr.find(qn('w:tblCellMar'))
+    if old_tblCellMar is not None:
+        tblPr.remove(old_tblCellMar)
+
+    # 添加新的边距【对整个表格过行设置】
     tblCellMar = OxmlElement('w:tblCellMar')
     for tag in ['w:top', 'w:left', 'w:bottom', 'w:right']:
         margin = OxmlElement(tag)
         margin.set(qn('w:w'), '150')  # 边距
         margin.set(qn('w:type'), 'dxa')
         tblCellMar.append(margin)
-
-    tbl = table._tbl
-    tblPr = tbl.tblPr
-    old_tblCellMar = tblPr.find(qn('w:tblCellMar'))
-    if old_tblCellMar is not None:
-        tblPr.remove(old_tblCellMar)
     tblPr.append(tblCellMar)
+
+     # --- 清除所有单元格的私有边距 (Cell Level) ---
+    for row in table.rows:
+        for cell in row.cells:
+            # 清除单元格的私有边距
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+
+            # 查找是否存在 w:tcMar 节点
+            tcMar = tcPr.find(qn('w:tcMar'))
+
+            # 如果存在，直接从父节点中移除它
+            if tcMar is not None:
+                tcPr.remove(tcMar)
+
+
+    
 
 # 设置表格行的高度
 def set_table_row_height(table):
